@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simu—Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emoji-mart/data"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    :root { --primary: #00a884; --bg: #111b21; --chat-bg: #0b141a; }
+    .dark { --primary: #00a884; --bg: #111b21; --chat-bg: #0b141a; }
+    body { background: var(--bg); color: white; }
+    .msg-right { background: #005c4b; align-self: flex-end; }
+    .msg-left { background: #202c33; align-self: flex-start; }
+    .voice-wave { height: 40px; background: linear-gradient(to right, #00a884 0%, #005c4b 100%); border-radius: 20px; }
+    .liquid-wave { animation: wave 2s infinite; }
+    @keyframes wave { 0%,100% { clip-path: polygon(0 60%, 100% 50%, 100% 100%, 0% 100%); } 50% { clip-path: polygon(0 30%, 100% 40%, 100% 100%, 0% 100%); } }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <script src="firebase.js"></script>
+
+  <!-- Header -->
+  <header class="bg-[#202c33] p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold text-white">Mahi Chat</h1>
+    <button id="darkToggle" class="text-2xl">🌙</button>
+  </header>
+
+  <!-- Chat Body -->
+  <div id="chatBody" class="flex-1 overflow-y-auto p-4 space-y-4" style="background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png') var(--chat-bg); background-size: cover;">
+    <div id="messages"></div>
+    <div id="typing" class="text-gray-400 text-sm italic hidden">Someone is typing...</div>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="bg-[#202c33] p-3 flex items-center gap-2">
+    <button id="attachBtn" class="text-gray-400 text-2xl">📎</button>
+    <input type="text" id="msgInput" class="flex-1 bg-[#2a3942] rounded-full px-4 py-3 text-white outline-none" placeholder="Type a message">
+    <button id="emojiBtn" class="text-2xl">😊</button>
+    <button id="voiceBtn" class="text-2xl">🎙️</button>
+    <button id="sendBtn" class="bg-[#00a884] text-white rounded-full p-3">➤</button>
+  </div>
+
+  <!-- Attachment Popup -->
+  <div id="attachPopup" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-end">
+    <div class="bg-[#202c33] w-full p-6 rounded-t-3xl grid grid-cols-3 gap-6 text-center text-white">
+      <label class="cursor-pointer"><input type="file" accept="image/*" id="imgInput" hidden><div class="bg-blue-600 w-16 h-16 rounded-full mx-auto mb-2"></div>Photo</label>
+      <label class="cursor-pointer"><input type="file" accept="video/*" id="vidInput" hidden><div class="bg-purple-600 w-16 h-16 rounded-full mx-auto mb-2"></div>Video</label>
+      <label class="cursor-pointer"><input type="file" accept="audio/*" id="audioInput" hidden><div class="bg-red-600 w-16 h-16 rounded-full mx-auto mb-2"></div>Audio</label>
+      <label class="cursor-pointer"><input type="file" id="fileInput" hidden><div class="bg-green-600 w-16 h-16 rounded-full mx-auto mb-2"></div>File</label>
+      <button onclick="document.getElementById('attachPopup').classList.add('hidden')" class="col-span-3 text-gray-400">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Voice Call Interface (Hidden) -->
+  <div id="voiceCall" class="fixed inset-0 bg-black hidden flex flex-col items-center justify-center text-white z-50">
+    <button onclick="leaveCall()" class="absolute top-4 left-4 text-3xl">←</button>
+    <h2 class="text-3xl mb-10">Group Voice Chat</h2>
+    <div id="callUsers" class="grid grid-cols-3 gap-6"></div>
+    <div class="fixed bottom-10 flex gap-10">
+      <button id="muteBtn" class="bg-red-600 text-3xl w-16 h-16 rounded-full">🎤</button>
+      <button onclick="leaveCall()" class="bg-red-600 text-3xl w-16 h-16 rounded-full">📞</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { firebaseDB, firebaseStorage, firebaseAuth } from './firebase.js';
+    const { db, ref, push, set, onValue, remove, update, serverTimestamp } = firebaseDB;
+    const { storage, sRef, uploadBytes, getDownloadURL } = firebaseStorage;
+
+    let currentUser = { uid: "", name: localStorage.getItem("username") || "Guest" + Math.floor(Math.random()*9999) };
+    if (!localStorage.getItem("username")) localStorage.setItem("username", currentUser.name);
+
+    const messagesRef = ref(db, "messages");
+    const usersRef = ref(db, "users");
+
+    // Send message
+    async function sendMessage(text = null, type = "text", fileUrl = null, oneTime = false) {
+      const msg = {
+        uid: currentUser.uid || "anon",
+        name: currentUser.name,
+        text: text || "",
+        type,
+        fileUrl,
+        oneTime,
+        timestamp: serverTimestamp()
+      };
+      await push(messagesRef, msg);
+      document.getElementById("msgInput").value = "";
+    }
+
+    // Render messages
+    onValue(messagesRef, (snap) => {
+      const msgs = snap.val();
+      const div = document.getElementById("messages");
+      div.innerHTML = Object.entries(msgs || {}).map(([id, m]) => {
+        const isMine = m.name === currentUser.name;
+        const time = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        return `
+          <div class="flex ${isMine ? 'justify-end' : 'justify-start'} mb-3 group">
+            <div class="${isMine ? 'msg-right' : 'msg-left'} text-white p-3 rounded-2xl max-w-xs relative">
+              <div class="font-bold text-xs">${m.name}</div>
+              ${m.type === 'text' ? m.text : m.type === 'voice' ? `<audio controls src="${m.fileUrl}"></audio>` : `<img src="${m.fileUrl}" class="rounded-lg max-w-full">`}
+              <div class="text-xs text-right opacity-70">${time}</div>
+              <button onclick="replyTo('${id}')" class="opacity-0 group-hover:opacity-100 absolute -left-8 top-4">↩️</button>
+            </div>
+          </div>`;
+      }).join('');
+      div.scrollTop = div.scrollHeight;
+    });
+
+    // Event Listeners
+    document.getElementById("sendBtn").onclick = () => sendMessage(document.getElementById("msgInput").value);
+    document.getElementById("msgInput").addEventListener("keypress", e => e.key === "Enter" && sendMessage(e.target.value));
+    document.getElementById("attachBtn").onclick = () => document.getElementById("attachPopup").classList.remove("hidden");
+
+    // Media Uploads
+    document.getElementById("imgInput").onchange = e => uploadFile(e.target.files[0], "image");
+    document.getElementById("vidInput").onchange = e => uploadFile(e.target.files[0], "video");
+    document.getElementById("audioInput").onchange = e => uploadFile(e.target.files[0], "voice");
+
+    async function uploadFile(file, type) {
+      const storageRef = sRef(storage, "media/" + Date.now() + "_" + file.name);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      sendMessage(null, type, url);
+      document.getElementById("attachPopup").classList.add("hidden");
+    }
+
+    // Dark Mode
+    document.getElementById("darkToggle").onclick = () => document.documentElement.classList.toggle("dark");
+
+    // Voice Call (Basic)
+    window.startCall = () => document.getElementById("voiceCall").classList.remove("hidden");
+    window.leaveCall = () => document.getElementById("voiceCall").classList.add("hidden");
+  </script>
+</body>
+</html>
