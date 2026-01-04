@@ -1,27 +1,29 @@
 import asyncio
 import random
+import os
+from io import BytesIO
+from datetime import datetime, timedelta
+from PIL import Image, ImageDraw, ImageFont
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.enums import ChatMemberStatus, ParseMode
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, RPCError
+from pytgcalls import PyTgCalls, StreamType
+from pytgcalls.types.input_stream import AudioPiped
+from yt_dlp import YoutubeDL
 
-# API Credentials
+# --- CREDENTIALS ---
 API_ID = 20579940
 API_HASH = "6fc0ea1c8dacae05751591adedc177d7"
-BOT_TOKEN = "8170872541:AAEW9FehHQ7RoDaTIGuWywH4xubLaALcZd8"
+BOT_TOKEN = "7853734473:AAHdGjbtPFWD6wFlyu8KRWteRg_961WGRJk"
 
-app = Client(
-    "DX_ADVANCE_TAGGER", 
-    api_id=API_ID, 
-    api_hash=API_HASH, 
-    bot_token=BOT_TOKEN,
-    parse_mode=ParseMode.HTML
-)
+app = Client("DX_ELITE_FINAL", API_ID, API_HASH, bot_token=BOT_TOKEN)
+call_py = PyTgCalls(app)
 
 tagging_active = {}
-EMOJIS = ["✨", "🌟", "🔥", "💎", "🎯", "⚡", "🌈", "🎈", "🍀", "🍎", "🍓", "🦋", "🚀", "👑", "👻"]
+EMOJIS = ["✨", "🌟", "🔥", "💎", "🎯", "⚡", "🌈", "🎈", "🍀", "🦋", "🚀", "👑", "👻", "🍎", "🍓"]
 
-# --- Admin Checker Function ---
+# --- ADMIN CHECKER ---
 async def is_admin(chat_id, user_id):
     try:
         member = await app.get_chat_member(chat_id, user_id)
@@ -29,96 +31,76 @@ async def is_admin(chat_id, user_id):
     except Exception:
         return False
 
-# --- 1. Service Message Remover (Your requested feature) ---
-@app.on_message(filters.group & filters.service)
-async def delete_service_messages(_, message: Message):
+# --- ADVANCE IMAGE WELCOME ---
+async def create_welcome_pic(user_id, first_name):
+    img = Image.new('RGB', (1000, 500), color=(10, 10, 10))
+    draw = ImageDraw.Draw(img)
+    
     try:
-        await message.delete()
+        # User profile photo fetch
+        async for photo in app.get_chat_photos(user_id, limit=1):
+            path = await app.download_media(photo.file_id)
+            pfp = Image.open(path).convert("RGBA").resize((250, 250))
+            os.remove(path)
+            img.paste(pfp, (375, 50))
     except Exception:
-        pass
+        pass # If no photo, keep it blank or use default
 
-# --- 2. /ctag (Hidden Tagging - Advanced Fix) ---
-@app.on_message(filters.command("ctag") & filters.group)
-async def hidden_tag(client, message: Message):
-    if not await is_admin(message.chat.id, message.from_user.id):
-        return
-    
-    chat_id = message.chat.id
-    tagging_active[chat_id] = True
-    
-    args = message.text.split(None, 1)
-    msg_text = args[1] if len(args) > 1 else "Attention Everyone!"
-    
-    members = []
-    async for m in client.get_chat_members(chat_id):
-        if not m.user.is_bot and not m.user.is_deleted:
-            members.append(m.user.id)
+    # Font handling to avoid crash
+    try:
+        font = ImageFont.load_default() # For server compatibility
+    except:
+        font = None
 
-    for i in range(0, len(members), 5):
-        if not tagging_active.get(chat_id):
-            break
-        
-        # Zero-width joiner tags
-        hidden_mentions = "".join([f'<a href="tg://user?id={u_id}">\u200D</a>' for u_id in members[i:i+5]])
+    draw.text((500, 350), f"WELCOME {first_name.upper()}", fill=(255, 255, 255), anchor="mm", font=font)
+    
+    bio = BytesIO()
+    bio.name = 'welcome.png'
+    img.save(bio, 'PNG')
+    bio.seek(0)
+    return bio
+
+@app.on_message(filters.new_chat_members)
+async def welcome_handler(client, message: Message):
+    for user in message.new_chat_members:
         try:
-            await client.send_message(chat_id, f"{hidden_mentions}{msg_text}")
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        except Exception:
-            pass
-        await asyncio.sleep(2.5)
-
-# --- 3. /ltag (Line by Line Emoji Mentions) ---
-@app.on_message(filters.command("ltag") & filters.group)
-async def line_tag(client, message: Message):
-    if not await is_admin(message.chat.id, message.from_user.id):
-        return
-
-    chat_id = message.chat.id
-    tagging_active[chat_id] = True
+            pic = await create_welcome_pic(user.id, user.first_name)
+            welcome_text = (
+                f"<b>╔══════════════════════╗</b>\n"
+                f"<b> ✨ ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴅᴀʀᴋ-ᴢᴏɴᴇ ✨ </b>\n"
+                f"<b>╚══════════════════════╝</b>\n\n"
+                f"<b>◈ User:</b> {user.mention}\n"
+                f"<b>◈ ID:</b> <code>{user.id}</code>\n\n"
+                f"✨ <i>ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴅx—ᴄᴏᴅᴇx</i>"
+            )
+            await message.reply_photo(pic, caption=welcome_text)
+        except Exception as e:
+            print(f"Welcome Error: {e}")
     
-    members = []
-    async for m in client.get_chat_members(chat_id):
-        if not m.user.is_bot and not m.user.is_deleted:
-            members.append(m.user.id)
+    # Delete Join Message
+    try: await message.delete()
+    except: pass
 
-    for i in range(0, len(members), 5):
-        if not tagging_active.get(chat_id):
-            break
-        
-        lines = [f"{random.choice(EMOJIS)} <a href='tg://user?id={u_id}'>Mentioned User</a>" for u_id in members[i:i+5]]
-        output = "\n".join(lines)
-        try:
-            await client.send_message(chat_id, output)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        except Exception:
-            pass
-        await asyncio.sleep(3.0)
-
-# --- 4. /tagall or /all (Original Decoration Restored) ---
+# --- TAGGER SYSTEM ---
 @app.on_message(filters.command(["tagall", "all"]) & filters.group)
-async def dx_tagger(client, message: Message):
+async def tagall_handler(client, message: Message):
     if not await is_admin(message.chat.id, message.from_user.id):
         return
-
+    
     chat_id = message.chat.id
     tagging_active[chat_id] = True
     
     args = message.text.split(None, 1)
     msg_text = args[1] if len(args) > 1 else "WAKE UP EVERYONE!"
     
-    await message.reply_text("<blockquote>🚀 <b>DX—CODEX Tagger Processing...</b></blockquote>")
-
     members = []
     async for m in client.get_chat_members(chat_id):
         if not m.user.is_bot and not m.user.is_deleted:
             members.append(m.user.id)
-
+    
     for i in range(0, len(members), 5):
-        if not tagging_active.get(chat_id):
-            break
-            
+        if not tagging_active.get(chat_id): break
+        
         tag_list = [f'<a href="tg://user?id={uid}">{random.choice(EMOJIS)}</a>' for uid in members[i:i+5]]
         output = (
             f"<b>╭╼━━━━━━✨━━━━━━╾╮</b>\n"
@@ -127,22 +109,56 @@ async def dx_tagger(client, message: Message):
             f"{' • '.join(tag_list)}\n\n"
             f"<code>💎 DX—CODEX</code>"
         )
-        
         try:
             await client.send_message(chat_id, output)
+            await asyncio.sleep(3)
         except FloodWait as e:
             await asyncio.sleep(e.value)
         except Exception:
             pass
-        await asyncio.sleep(3.0)
 
-# --- 5. /stop (Stopping All Processes) ---
 @app.on_message(filters.command("stop") & filters.group)
 async def stop_tag(client, message: Message):
-    if not await is_admin(message.chat.id, message.from_user.id):
-        return
+    if not await is_admin(message.chat.id, message.from_user.id): return
     tagging_active[message.chat.id] = False
-    await message.reply_text("<code>🛑 All Tagging Stopped.</code>")
+    await message.reply_text("🛑 <b>Tagger Stopped Successfully!</b>")
 
-print("--- DX—CODEX ADVANCE BOT IS READY ---")
-app.run()
+# --- MUSIC SYSTEM ---
+@app.on_message(filters.command("play") & filters.group)
+async def play_music(client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply_text("🔎 <b>Give song name!</b>")
+    
+    query = " ".join(message.command[1:])
+    m = await message.reply_text("⏳ ᴘʀᴏᴄᴇssɪɴɢ...")
+    
+    try:
+        with YoutubeDL({"format": "bestaudio", "quiet": True}) as ytdl:
+            info = ytdl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+        
+        await call_py.join_group_call(
+            message.chat.id,
+            AudioPiped(info['url']),
+            stream_type=StreamType.pulse_stream
+        )
+        
+        design = (
+            f"➲ <b>Sᴛᴀʀᴛᴇᴅ Sᴛʀᴇᴀᴍɪɴɢ</b> |\n\n"
+            f"‣ <b>Tɪᴛʟᴇ :</b> {info['title'][:25]}...\n"
+            f"‣ <b>Dᴜʀᴀᴛɪᴏɴ :</b> {str(timedelta(seconds=info['duration']))}\n"
+            f"‣ <b>Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ :</b> {message.from_user.mention}\n"
+        )
+        await m.delete()
+        await message.reply_text(design)
+    except Exception as e:
+        await m.edit(f"❌ <b>Error:</b> <code>{e}</code>")
+
+# --- START BOT ---
+async def main():
+    await app.start()
+    await call_py.start()
+    print("--- DX—CODEX ELITE SYSTEM IS LIVE ---")
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    app.run(main())
